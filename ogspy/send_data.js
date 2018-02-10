@@ -108,13 +108,24 @@ function initOGSpyCommunication() {
                 return;
             }
 
+            //Récupération Mdp
             GM_setValue("server.name", "OGSpy");
             password_s = CryptoJS.SHA1(GM_getValue("server.pwd", ""));
             password_m = CryptoJS.MD5(password_s.toString());
-            postData = "toolbar_version=" + VERSION + "&toolbar_type=" + TYPE + "&mod_min_version=" + PLUGIN_REQUIRED + "&user=" + GM_getValue("server.user", "") + "&password=" + password_m + "&univers=" + urlUnivers + XtenseRequest.serializeData();
-            log("sending " + postData + " to " + GM_getValue("server.url.plugin", "") + "/mod/xtense/xtense.php" + " from " + urlUnivers);
+
+            this.set({
+                toolbar_version : VERSION,
+                toolbar_type : TYPE,
+                mod_min_version : PLUGIN_REQUIRED,
+                user : GM_getValue("server.user", ""),
+                password : password_m.toString(),
+                univers : urlUnivers
+            });
+
+            postData = "data=" + JSON.stringify(this.data);
+            log("sending " + postData + " to " + GM_getValue("server.url.plugin", "") + "/mod/xtense/xtense.php?data=" + " from " + urlUnivers);
             new Xajax({
-                url: GM_getValue("server.url.plugin", "") + "/mod/xtense/xtense.php",
+                url: GM_getValue("server.url.plugin", "") + "/mod/xtense/xtense.php?data=",
                 post: postData,
                 callback: null,
                 scope: this
@@ -123,24 +134,16 @@ function initOGSpyCommunication() {
                 GM_setValue("server.name", "OGSpy Backup");
                 password_s = CryptoJS.SHA1(GM_getValue("server_backup.pwd", ""));
                 password_m = CryptoJS.MD5(password_s.toString());
-                postData = "toolbar_version=" + VERSION + "&toolbar_type=" + TYPE + "&mod_min_version=" + PLUGIN_REQUIRED + "&user=" + GM_getValue("server_backup.user", "") + "&password=" + password_m + "&univers=" + urlUnivers + XtenseRequest.serializeData();
+                postData = "toolbar_version=" + VERSION + "&toolbar_type=" + TYPE + "&mod_min_version=" + PLUGIN_REQUIRED + "&user=" + GM_getValue("server_backup.user", "") + "&password=" + password_m + "&univers=" + urlUnivers + JSON.stringify(this.data);
                 log("sending backup " + postData + " to " + GM_getValue("server_backup.url.plugin", "") + "/mod/xtense/xtense.php" + " from " + urlUnivers);
                 new Xajax({
-                    url: GM_getValue("server_backup.url.plugin", "") + "/mod/xtense/xtense.php",
+                    url: GM_getValue("server_backup.url.plugin", "") + "/mod/xtense/xtense.php?data=",
                     post: postData,
                     callback: null,
                     scope: this
                 });
             }
 
-        },
-        call: function (Server, Response) {
-            XtenseRequest.loading[Server.n] = false;
-            XtenseRequest.callback.apply(this.scope, [
-                this,
-                Server,
-                Response
-            ]);
         },
         set: function (name, value) {
             if (typeof name === 'string') this.data[name] = value;
@@ -149,37 +152,7 @@ function initOGSpyCommunication() {
                     for (var i in arguments[n]) this.data[i] = arguments[n][i];
                 }
             }
-        },
-        serializeObject: function (obj, parent, tab) {
-            var retour = '';
-            var type = typeof obj;
-            var str = '';
-            if (type === 'object') {
-                for (var i in obj) {
-                    if (parent !== '')
-                        str = parent + '[' + i + ']';
-                    else str = i;
-                    var a = false;
-                    // Patch pour Graphic Tools for Ogame
-                    if (str.search("existsTOG") == -1) {
-                        a = this.serializeObject(obj[i], str, tab);
-                    }
-                    if (a !== false)
-                        tab.push(a);
-                }
-                return false;
-            } else if (type === 'boolean')
-                retour = (obj === true ? 1 : 0);
-            else retour = obj + '';
-            return parent + '=' + encodeURIComponent(retour).replace(new RegExp('(%0A)+', 'g'), '%20').replace(new RegExp('(%09)+', 'g'), '%20').replace(new RegExp('(%20)+', 'g'), '%20');
-        },
-        serializeData: function () {
-            var uri = '';
-            var tab = [];
-            this.serializeObject(this.data, '', tab);
-            uri = '&' + tab.join('&');
-            return uri;
-        },
+        }
     };
 }
 /* Interpretation des retours Xtense (module OGSPY) */
@@ -230,7 +203,7 @@ function handleResponse(status, Response) {
                 return;
             }
         }
-        data = jQuery.parseJSON(data);
+        data = JSON.parse(data);
         var message = '';
         var code = data.type;
         if (data.status === 0) {
